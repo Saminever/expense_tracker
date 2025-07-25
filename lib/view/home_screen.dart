@@ -1,59 +1,67 @@
+import 'package:expence_tracker_app/model/group_model.dart';
+import 'package:expence_tracker_app/view/group_screen.dart';
 import 'package:flutter/material.dart';
-// import 'package:get/get.dart';
-// import '../controllers/group_controller.dart';
-// import '../models/group_model.dart';
-// import 'group_screen.dart';
+import 'package:get/get.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+ 
 
 class HomeScreen extends StatelessWidget {
-  // final GroupController controller = Get.put(GroupController());
+  final groupBox = Hive.box<GroupModel>('groups');
+  final TextEditingController groupController = TextEditingController();
+
+  HomeScreen({super.key});
+
+  void addGroup() {
+    final name = groupController.text.trim();
+    if (name.isNotEmpty) {
+      groupBox.add(GroupModel(name: name));
+      groupController.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final _groupController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
-
     return Scaffold(
-      appBar: AppBar(title: Text('Groups')),
-      // body: Obx(() => ListView.builder(
-      //       itemCount: controller.groups.length,
-      //       itemBuilder: (_, index) {
-      //         final group = controller.groups[index];
-      //         return ListTile(
-      //           title: Text(group.groupName),
-      //           subtitle: Text(group.createdAt.toString()),
-      //           onTap: () {
-      //             Get.to(() => GroupScreen(group: group));
-      //           },
-      //         );
-      //       },
-      //     )),
-      // floatingActionButton: FloatingActionButton(
-      // onPressed: () {
-      //   Get.defaultDialog(
-      //     title: "New Group",
-      //     content: Column(
-      //       children: [
-      //         TextField(
-      //           controller: _groupController,
-      //           decoration: InputDecoration(labelText: "Group Name"),
-      //         ),
-      //         ElevatedButton(
-      //           onPressed: () {
-      //             // final newGroup = GroupModel(
-      //             //   groupName: _groupController.text.trim(),
-      //             //   createdAt: selectedDate,
-      //             // );
-      //             // controller.addGroup(newGroup);
-      //             // Get.back();
-      //           },
-      //           child: Text("Create"),
-      //         )
-      //       ],
-      //     ),
-      //   );
-      // },
-      //     child: Icon(Icons.add),
-      //   ),
+      appBar: AppBar(title: const Text('Expense Tracker')),
+      body: ValueListenableBuilder(
+        valueListenable: groupBox.listenable(),
+        builder: (context, Box<GroupModel> box, _) {
+          final groups = box.values.toList();
+          return ListView.builder(
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              return ListTile(
+                title: Text(group.name),
+                onTap: () => Get.to(() => GroupScreen(groupName: group.name)),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Add Group"),
+            content: TextField(
+              controller: groupController,
+              decoration: const InputDecoration(hintText: "Enter group name"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  addGroup();
+                  Get.back();
+                },
+                child: const Text("Add"),
+              )
+            ],
+          ),
+        ),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
