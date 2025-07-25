@@ -1,7 +1,8 @@
-import 'package:expence_tracker_app/model/expense_model.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:hive/hive.dart';
+import '../model/expense_model.dart';
+import 'package:collection/collection.dart';
 
 class GroupSummaryScreen extends StatefulWidget {
   const GroupSummaryScreen({super.key});
@@ -12,6 +13,7 @@ class GroupSummaryScreen extends StatefulWidget {
 
 class _GroupSummaryScreenState extends State<GroupSummaryScreen> {
   late Box<ExpenseModel> _expenseBox;
+  int touchedIndex = -1;
 
   @override
   void initState() {
@@ -31,93 +33,95 @@ class _GroupSummaryScreenState extends State<GroupSummaryScreen> {
     return totals;
   }
 
-  String getTopSpendingGroup() {
-    final data = getGroupTotals();
-    if (data.isEmpty) return "No data available";
-    final top = data.entries.reduce((a, b) => a.value > b.value ? a : b);
-    return "${top.key} (Rs. ${top.value.toStringAsFixed(2)})";
-  }
-
-  Widget buildGroupExpenseChart() {
+  @override
+  Widget build(BuildContext context) {
     final data = getGroupTotals();
     final total = data.values.fold(0.0, (sum, item) => sum + item);
 
     if (total == 0) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text("No expenses added yet."),
-        ),
+      return const Scaffold(
+        body: Center(child: Text("No expenses added yet.")),
       );
     }
 
-    final sections = data.entries.map((entry) {
-      final percentage = (entry.value / total) * 100;
-      final color = Colors.primaries[
-          data.keys.toList().indexOf(entry.key) % Colors.primaries.length];
+    final sections = data.entries.mapIndexed((index, entry) {
+      final color = Colors.primaries[index % Colors.primaries.length];
+      final value = entry.value;
       return PieChartSectionData(
         color: color,
-        value: entry.value,
-        title: "${entry.key} (${percentage.toStringAsFixed(1)}%)",
-        radius: 60,
-        titleStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+        value: value,
+        showTitle: false,
+        radius: touchedIndex == index ? 70 : 60,
+      );
+    }).toList();
+
+    final legendItems = data.entries.mapIndexed((index, entry) {
+      final color = Colors.primaries[index % Colors.primaries.length];
+      final percent = ((entry.value / total) * 100).toStringAsFixed(1);
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 14, height: 14, color: color),
+            const SizedBox(width: 8),
+            Text('${entry.key}: $percent %'),
+          ],
         ),
       );
     }).toList();
 
-    return Card(
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 5,
-      child: Padding(
+    return Scaffold(
+      appBar: AppBar(title: const Text("Extension Costs")),
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Expense Distribution",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sections: sections,
+                        centerSpaceRadius: 0,
+                        sectionsSpace: 2,
+                        pieTouchData: PieTouchData(
+                          touchCallback: (event, response) {
+                            setState(() {
+                              if (!event.isInterestedForInteractions ||
+                                  response == null ||
+                                  response.touchedSection == null) {
+                                touchedIndex = -1;
+                                return;
+                              }
+                              touchedIndex =
+                                  response.touchedSection!.touchedSectionIndex;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: legendItems,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 250,
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final topGroup = getTopSpendingGroup();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Group Summary"),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            buildGroupExpenseChart(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                "Top Spending Group: $topGroup",
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 20),
+            Text(
+              "Total Expense: Rs. ${total.toStringAsFixed(2)}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            )
           ],
         ),
       ),
