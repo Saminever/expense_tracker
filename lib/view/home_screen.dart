@@ -1,10 +1,11 @@
 import 'package:expence_tracker_app/model/group_model.dart';
+import 'package:expence_tracker_app/view/group_sumerry.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-// import '../models/group_model.dart';
 import 'group_screen.dart';
+// import 'chart_screen.dart'; // chart screen import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (name.isNotEmpty) {
       groupBox.add(GroupModel(name: name));
       groupController.clear();
-      _onSearchChanged(); // Update list after adding
+      _onSearchChanged();
     }
   }
 
@@ -57,56 +58,40 @@ class _HomeScreenState extends State<HomeScreen> {
           preferredSize: const Size.fromHeight(70),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[850]
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: Theme.of(context).brightness == Brightness.dark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: TextField(
-                controller: searchController,
-                onChanged: (_) => _onSearchChanged(),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-                decoration: InputDecoration(
-                  hintText: "Search groups...",
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).hintColor,
-                  ),
-                  prefixIcon: Icon(Icons.search,
-                      color: Theme.of(context).colorScheme.primary),
-                  suffixIcon: searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            searchController.clear();
-                            _onSearchChanged();
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-            ),
+            child: _buildSearchBar(context),
           ),
         ),
       ),
+
+      /// 🔻 Drawer Added
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Colors.teal,
+              ),
+              child: const Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.pie_chart),
+              title: const Text('View Chart'),
+              onTap: () {
+                Navigator.pop(context);
+                Get.to(() => const GroupSummaryScreen());
+              },
+            ),
+          ],
+        ),
+      ),
+
       body: ValueListenableBuilder(
         valueListenable: groupBox.listenable(),
         builder: (context, Box<GroupModel> box, _) {
@@ -176,6 +161,56 @@ class _HomeScreenState extends State<HomeScreen> {
         label: const Text("Add Group"),
         icon: const Icon(Icons.add),
         backgroundColor: Colors.teal,
+      ),
+    );
+  }
+
+  /// 🔍 Search Bar UI
+  Widget _buildSearchBar(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[850]
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: Theme.of(context).brightness == Brightness.dark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: TextField(
+        controller: searchController,
+        style: TextStyle(
+          fontSize: 16,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+        decoration: InputDecoration(
+          hintText: "Search groups...",
+          hintStyle: TextStyle(
+            color: Theme.of(context).hintColor,
+          ),
+          prefixIcon:
+              Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+          suffixIcon: searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    searchController.clear();
+                    _onSearchChanged();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
       ),
     );
   }
