@@ -1,11 +1,11 @@
+// ✅ HomeScreen.dart
 import 'package:expence_tracker_app/model/group_model.dart';
-import 'package:expence_tracker_app/view/group_sumerry.dart';
+import 'package:expence_tracker_app/model/expense_model.dart';
+import 'package:expence_tracker_app/view/group_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'group_screen.dart';
-// import 'chart_screen.dart'; // chart screen import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final groupBox = Hive.box<GroupModel>('groups');
+  final expenseBox = Hive.box<ExpenseModel>('expenses');
   final TextEditingController groupController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
   List<GroupModel> filteredGroups = [];
@@ -45,6 +46,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void deleteGroup(int indexInBox, String groupName) async {
+    // Delete all expenses in this group
+    final expensesToDelete =
+        expenseBox.values.where((e) => e.groupName == groupName).toList();
+    for (var e in expensesToDelete) {
+      await e.delete();
+    }
+
+    // Delete the group
+    groupBox.deleteAt(indexInBox);
+    _onSearchChanged();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,22 +76,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-
-      /// 🔻 Drawer Added
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Colors.teal,
-              ),
-              child: const Text(
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.teal),
+              child: Text(
                 'Menu',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
             ListTile(
@@ -85,19 +92,20 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('View Chart'),
               onTap: () {
                 Navigator.pop(context);
-                Get.to(() => const GroupSummaryScreen());
+                Get.toNamed('/chart');
               },
             ),
           ],
         ),
       ),
-
       body: ValueListenableBuilder(
         valueListenable: groupBox.listenable(),
         builder: (context, Box<GroupModel> box, _) {
-          final hasResults = filteredGroups.isNotEmpty;
+          filteredGroups = searchController.text.isEmpty
+              ? box.values.toList()
+              : filteredGroups;
 
-          if (!hasResults) {
+          if (filteredGroups.isEmpty) {
             return const Center(
               child: Text(
                 "No matching groups found!",
@@ -111,6 +119,9 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: filteredGroups.length,
             itemBuilder: (context, index) {
               final group = filteredGroups[index];
+              final boxIndex =
+                  box.values.toList().indexOf(group); // required for delete
+
               return Card(
                 elevation: 4,
                 margin: const EdgeInsets.symmetric(vertical: 8),
@@ -124,8 +135,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.teal),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => deleteGroup(boxIndex, group.name),
+                      ),
+                      const Icon(Icons.arrow_forward_ios,
+                          size: 16, color: Colors.teal),
+                    ],
+                  ),
                   onTap: () => Get.to(() => GroupScreen(groupName: group.name)),
                 ),
               );
@@ -165,7 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 🔍 Search Bar UI
   Widget _buildSearchBar(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -178,10 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
         boxShadow: Theme.of(context).brightness == Brightness.dark
             ? []
             : [
-                BoxShadow(
+                const BoxShadow(
                   color: Colors.black12,
                   blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  offset: Offset(0, 2),
                 ),
               ],
       ),
@@ -193,9 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         decoration: InputDecoration(
           hintText: "Search groups...",
-          hintStyle: TextStyle(
-            color: Theme.of(context).hintColor,
-          ),
+          hintStyle: TextStyle(color: Theme.of(context).hintColor),
           prefixIcon:
               Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
           suffixIcon: searchController.text.isNotEmpty
