@@ -1,11 +1,11 @@
-// ✅ HomeScreen.dart
-import 'package:expence_tracker_app/model/group_model.dart';
-import 'package:expence_tracker_app/model/expense_model.dart';
-import 'package:expence_tracker_app/view/group_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+import '../model/group_model.dart';
+import '../model/expense_model.dart';
+import 'group_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,8 +17,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final groupBox = Hive.box<GroupModel>('groups');
   final expenseBox = Hive.box<ExpenseModel>('expenses');
+
   final TextEditingController groupController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
+
   List<GroupModel> filteredGroups = [];
 
   @override
@@ -47,14 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void deleteGroup(int indexInBox, String groupName) async {
-    // Delete all expenses in this group
     final expensesToDelete =
         expenseBox.values.where((e) => e.groupName == groupName).toList();
     for (var e in expensesToDelete) {
       await e.delete();
     }
 
-    // Delete the group
     groupBox.deleteAt(indexInBox);
     _onSearchChanged();
   }
@@ -64,8 +64,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
-        title: const Text("Expense Tracker",
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Expense Tracker",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.teal,
         elevation: 4,
         bottom: PreferredSize(
@@ -98,56 +100,74 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+      // 👇 Listen to both groupBox and expenseBox
       body: ValueListenableBuilder(
         valueListenable: groupBox.listenable(),
         builder: (context, Box<GroupModel> box, _) {
-          filteredGroups = searchController.text.isEmpty
-              ? box.values.toList()
-              : filteredGroups;
+          return ValueListenableBuilder(
+            valueListenable: expenseBox.listenable(),
+            builder: (context, Box<ExpenseModel> expBox, _) {
+              filteredGroups = searchController.text.isEmpty
+                  ? box.values.toList()
+                  : filteredGroups;
 
-          if (filteredGroups.isEmpty) {
-            return const Center(
-              child: Text(
-                "No matching groups found!",
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: filteredGroups.length,
-            itemBuilder: (context, index) {
-              final group = filteredGroups[index];
-              final boxIndex =
-                  box.values.toList().indexOf(group); // required for delete
-
-              return Card(
-                elevation: 4,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  title: Text(
-                    group.name,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+              if (filteredGroups.isEmpty) {
+                return const Center(
+                  child: Text(
+                    "No matching groups found!",
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => deleteGroup(boxIndex, group.name),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: filteredGroups.length,
+                itemBuilder: (context, index) {
+                  final group = filteredGroups[index];
+                  final boxIndex = box.values.toList().indexOf(group);
+
+                  // Real-time total expense for this group
+                  final groupExpenses = expBox.values
+                      .where((e) => e.groupName == group.name)
+                      .toList();
+                  final totalAmount =
+                      groupExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
+                  return Card(
+                    elevation: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      title: Text(
+                        group.name,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      const Icon(Icons.arrow_forward_ios,
-                          size: 16, color: Colors.teal),
-                    ],
-                  ),
-                  onTap: () => Get.to(() => GroupScreen(groupName: group.name)),
-                ),
+                      subtitle: Text(
+                        "Total Expense: ${totalAmount.toStringAsFixed(2)} PKR",
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => deleteGroup(boxIndex, group.name),
+                          ),
+                          const Icon(Icons.arrow_forward_ios,
+                              size: 16, color: Colors.teal),
+                        ],
+                      ),
+                      onTap: () =>
+                          Get.to(() => GroupScreen(groupName: group.name)),
+                    ),
+                  );
+                },
               );
             },
           );

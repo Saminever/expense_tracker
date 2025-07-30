@@ -1,25 +1,28 @@
 import 'package:hive/hive.dart';
 
 part 'expense_model.g.dart';
-
-@HiveType(typeId: 1)
+ @HiveType(typeId: 1)
 class ExpenseModel extends HiveObject {
   @HiveField(0)
-  final String groupName;
+  String groupName;
 
   @HiveField(1)
-  final String title;
+  String title;
 
   @HiveField(2)
-  final double amount;
+  double amount;
 
   @HiveField(3)
-  final DateTime date;
+  DateTime date;
+
+  // @HiveField(4)
+  // bool isGiven; // true = diya, false = liya
 
   ExpenseModel({
     required this.groupName,
     required this.title,
     required this.amount,
     required this.date,
+    // required this.isGiven,
   });
 }

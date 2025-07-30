@@ -7,5 +7,9 @@ class GroupModel extends HiveObject {
   @HiveField(0)
   final String name;
 
-  GroupModel({required this.name});
+  GroupModel({required this.name
+  
+  });
+
+  get groupName => null;
 }
